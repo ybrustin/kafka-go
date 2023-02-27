@@ -698,7 +698,7 @@ func (w *Writer) WriteMessages(ctx context.Context, msgs ...Message) error {
 //
 // When the method returns an error, it may be of type kafka.WriteError to allow
 // the caller to determine the status of each message.
-func (w *Writer) WriteMessageGroup(msgs ...Message) error {
+func (w *Writer) WriteMessageGroup(ctx context.Context, msgs ...Message) error {
 	if w.Addr == nil {
 		return errors.New("kafka.(*Writer).WriteMessages: cannot create a kafka writer with a nil address")
 	}
@@ -714,7 +714,7 @@ func (w *Writer) WriteMessageGroup(msgs ...Message) error {
 
 	balancer := w.balancer()
 
-	ctx, cancel := context.WithTimeout(context.Background(), w.writeTimeout())
+	ctx, cancel := context.WithTimeout(ctx, w.writeTimeout())
 	defer cancel()
 
 	numPartitions, err := w.partitions(ctx, w.Topic)
@@ -734,11 +734,15 @@ func (w *Writer) WriteMessageGroup(msgs ...Message) error {
 		},
 	})
 
-	if pr.Error != nil {
+	if err != nil {
+		return err
+	}
+
+	if pr != nil {
 		return pr.Error
 	}
 
-	return err
+	return nil
 }
 
 func (w *Writer) batchMessages(messages []Message, assignments map[topicPartition][]int32) map[*writeBatch][]int32 {
